@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>식사메뉴돌림판</title>
+  <style>
+    :root {
+      --bg-color: #f6f8fd;
+      --card-bg: #ffffff;
+      --primary: #ff5757;
+      --primary-hover: #ff3838;
+      --secondary: #4a6fa5;
+      --text-main: #2d3748;
+      --text-sub: #718096;
+      --border-color: #e2e8f0;
+      
+      /* 카테고리별 대표 색상 */
+      --cat-korean: #ff7675;      /* 한식 */
+      --cat-chinese: #d63031;     /* 중식 */
+      --cat-japanese: #0984e3;    /* 일식 */
+      --cat-western: #fdcb6e;     /* 양식 */
+      --cat-snack: #e84393;       /* 분식 */
+      --cat-fastfood: #6c5ce7;    /* 패스트푸드 */
+      --cat-etc: #00b894;         /* 기타 */
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    /* 상단 헤더 */
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      color: #2d3436;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    header p {
+      color: var(--text-sub);
+      font-size: 0.95rem;
+      margin-top: 6px;
+    }
+
+    /* 메인 레이아웃 */
+    .app-container {
+      display: flex;
+      flex-direction: row;
+      gap: 32px;
+      max-width: 1100px;
+      width: 100%;
+      background: var(--card-bg);
+      border-radius: 28px;
+      padding: 32px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    /* 왼쪽 룰렛 영역 */
+    .roulette-section {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .roulette-wrapper {
+      position: relative;
+      width: 420px;
+      height: 420px;
+      max-width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 10px 0 24px;
+    }
+
+    /* 룰렛 상단 핀 (화살표) */
+    .pointer {
+      position: absolute;
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 32px;
+      height: 42px;
+      z-index: 10;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    }
+
+    .pointer svg {
+      width: 100%;
+      height: 100%;
+      fill: #ff3838;
+    }
+
+    canvas#rouletteCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      transition: filter 0.3s;
+    }
+
+    /* 룰렛 정중앙 버튼 */
+    .center-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b6b, #ee5253);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.1rem;
+      border: 4px solid #ffffff;
+      box-shadow: 0 4px 14px rgba(238, 82, 83, 0.4);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      z-index: 5;
+    }
+
+    .center-button:hover:not(:disabled) {
+      transform: translate(-50%, -50%) scale(1.06);
+      box-shadow: 0 6px 18px rgba(238, 82, 83, 0.55);
+    }
+
+    .center-button:active:not(:disabled) {
+      transform: translate(-50%, -50%) scale(0.96);
+    }
+
+    .center-button:disabled {
+      background: #b2bec3;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* 룰렛 컨트롤 및 당첨 패널 */
+    .result-display {
+      width: 100%;
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 16px;
+      min-height: 86px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .result-display.win {
+      border-color: #ff7675;
+      background: #fff5f5;
+      animation: bounce 0.6s ease;
+    }
+
+    .result-label {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+
+    .result-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #2d3436;
+    }
+
+    .result-category-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #cbd5e1;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* 오른쪽 메뉴 목록 패널 */
+    .menu-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-count {
+      background: #edf2f7;
+      color: var(--secondary);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* 메뉴 추가 입력 폼 */
+    .add-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-color);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .form-row input, .form-row select {
+      height: 42px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 0 12px;
+      font-size: 0.9rem;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-row input:focus, .form-row select:focus {
+      border-color: var(--primary);
+    }
+
+    .form-row input {
+      flex: 1;
+    }
+
+    .form-row select {
+      width: 120px;
+    }
+
+    .btn-add {
+      height: 42px;
+      background: #10b981;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 18px;
+      transition: background 0.2s;
+    }
+
+    .btn-add:hover {
+      background: #059669;
+    }
+
+    /* 메뉴 리스트 스크롤 영역 */
+    .menu-list-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 380px;
+      padding-right: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .menu-list-wrapper::-webkit-scrollbar {
+      width: 6px;
+    }
+    .menu-list-wrapper::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    }
+
+    .menu-item:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .menu-item.excluded {
+      opacity: 0.45;
+      background: #f1f5f9;
+      text-decoration: line-through;
+    }
+
+    .menu-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    .category-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+
+    .menu-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .menu-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .btn-icon:hover {
+      color: #ef4444;
+      background: #fee2e2;
+    }
+
+    .empty-message {
+      text-align: center;
+      color: #94a3b8;
+      padding: 36px 0;
+      font-size: 0.9rem;
+    }
+
+    .list-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .btn-text {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .btn-text:hover {
+      color: var(--primary);
+    }
+
+    /* 토스트 알림 */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* 당첨 축하 모달 팝업 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 90;
+      padding: 16px;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 24px;
+      width: 100%;
+      max-width: 380px;
+      padding: 32px 24px 24px;
+      text-align: center;
+      transform: scale(0.85);
+      transition: transform 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      position: relative;
+    }
+
+    .modal-overlay.open .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-icon {
+      font-size: 3.5rem;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: pop 0.4s ease;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+    }
+
+    .modal-winner {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+
+    /* 축하 색종이 캔버스 */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.4); opacity: 0; }
+      80% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* 반응형 레이아웃 (모바일/태블릿) */
+    @media (max-width: 868px) {
+      .app-container {
+        flex-direction: column;
+        padding: 20px;
+        gap: 24px;
+      }
+
+      .roulette-wrapper {
+        width: 330px;
+        height: 330px;
+      }
+
+      .center-button {
+        width: 70px;
+        height: 70px;
+        font-size: 0.95rem;
+      }
+
+      .menu-list-wrapper {
+        max-height: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 제목 -->
+  <header>
+    <h1>🍽️ 식사메뉴돌림판!</h1>
+    <p>오늘 뭐 먹지? 고민될 땐 버튼 하나로 바로 결정해보세요!</p>
+  </header>
+
+  <div class="app-container">
+    <!-- 왼쪽: 룰렛 섹션 -->
+    <section class="roulette-section">
+      <div class="roulette-wrapper">
+        <!-- 상단 화살표 핀 -->
+        <div class="pointer" aria-hidden="true">
+          <svg viewBox="0 0 24 32">
+            <path d="M12 32 L2 10 A10 10 0 1 1 22 10 Z" />
+          </svg>
+        </div>
+
+        <!-- 룰렛 캔버스 -->
+        <canvas id="rouletteCanvas" width="800" height="800"></canvas>
+
+        <!-- 룰렛 중앙 돌리기 버튼 -->
+        <button id="btnSpinCenter" class="center-button" title="룰렛 돌리기">
+          <span>SPIN!</span>
+        </button>
+      </div>
+
+      <!-- 당첨 결과 표시 영역 -->
+      <div id="resultDisplay" class="result-display">
+        <div class="result-label">추천 메뉴 결과</div>
+        <div id="resultTitle" class="result-title">룰렛을 돌려주세요!</div>
+        <span id="resultCategory" class="result-category-badge" style="display:none;"></span>
+      </div>
+
+      <!-- 다시 돌리기 & 초기화 버튼 -->
+      <div class="action-buttons">
+        <button id="btnSpinAgain" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          다시 돌리기
+        </button>
+        <button id="btnResetHistory" class="btn btn-secondary" title="추첨된 메뉴 기록을 초기화하여 전체 메뉴를 다시 돌림판에 올립니다">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          추첨 기록 초기화
+        </button>
+      </div>
+    </section>
+
+    <!-- 오른쪽: 메뉴 목록 및 추가·삭제 섹션 -->
+    <section class="menu-section">
+      <div class="panel-header">
+        <h2 class="panel-title">
+          📋 메뉴 목록
+          <span id="activeCountBadge" class="badge-count">0개</span>
+        </h2>
+      </div>
+
+      <!-- 새 메뉴 추가 폼 -->
+      <form id="addMenuForm" class="add-form" onsubmit="return false;">
+        <div class="form-row">
+          <input type="text" id="inputMenuName" placeholder="새로운 메뉴 이름 (예: 김치찌개)" maxlength="16" autocomplete="off" />
+          <select id="selectCategory">
+            <option value="한식">한식</option>
+            <option value="중식">중식</option>
+            <option value="일식">일식</option>
+            <option value="양식">양식</option>
+            <option value="분식">분식</option>
+            <option value="패스트푸드">패스트푸드</option>
+            <option value="기타">기타</option>
+          </select>
+          <button type="submit" id="btnAddMenu" class="btn-add">추가</button>
+        </div>
+      </form>
+
+      <!-- 메뉴 스크롤 목록 -->
+      <div id="menuList" class="menu-list-wrapper">
+        <!-- 동적으로 렌더링 -->
+      </div>
+
+      <div class="list-footer">
+        <span id="excludedStatus" style="font-size:0.82rem; color:#64748b;">추첨 완료: 0개</span>
+        <button type="button" id="btnRestoreDefaults" class="btn-text">기본 메뉴로 복원</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- 당첨 축하 팝업 모달 -->
+  <div id="winnerModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-icon">🎉</div>
+      <div class="modal-title">오늘의 추천 식사 메뉴</div>
+      <div id="modalWinnerName" class="modal-winner">제육볶음</div>
+      <div id="modalCategoryBadge" class="result-category-badge" style="margin-bottom: 12px;">한식</div>
+      <p class="modal-desc">
+        오늘 한 끼는 이 메뉴 어떠세요?<br>맛있고 든든한 식사 시간 되세요!
+      </p>
+      <button id="modalCloseBtn" class="btn btn-primary" style="width:100%;">확인 및 닫기</button>
+    </div>
+  </div>
+
+  <!-- 파티클 컨페티 캔버스 -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- 토스트 안내 메시지 -->
+  <div id="toast" class="toast">알림 메시지</div>
+
+  <script>
+    /* ========================================================
+       1. 상수 및 기본 데이터 정의
+       ======================================================== */
+    const STORAGE_KEY_MENUS = 'roulette_meal_menus_v1';
+    const STORAGE_KEY_EXCLUDED = 'roulette_excluded_ids_v1';
+
+    // 카테고리별 테마 색상 설정 (배경색 & 텍스트색)
+    const CATEGORY_COLORS = {
+      '한식': { bg: '#ff7675', text: '#ffffff' },
+      '중식': { bg: '#d63031', text: '#ffffff' },
+      '일식': { bg: '#0984e3', text: '#ffffff' },
+      '양식': { bg: '#f1b83d', text: '#2d3436' },
+      '분식': { bg: '#e84393', text: '#ffffff' },
+      '패스트푸드': { bg: '#6c5ce7', text: '#ffffff' },
+      '기타': { bg: '#00b894', text: '#ffffff' }
+    };
+
+    // 풍부한 기본 메뉴 세트 (한식, 중식, 일식, 양식, 분식, 패스트푸드)
+    const DEFAULT_MENUS = [
+      { id: '1', name: '김치찌개', category: '한식' },
+      { id: '2', name: '된장찌개', category: '한식' },
+      { id: '3', name: '제육볶음', category: '한식' },
+      { id: '4', name: '비빔밥', category: '한식' },
+      { id: '5', name: '짜장면', category: '중식' },
+      { id: '6', name: '짬뽕', category: '중식' },
+      { id: '7', name: '마라탕', category: '중식' },
+      { id: '8', name: '탕수육', category: '중식' },
+      { id: '9', name: '돈카츠', category: '일식' },
+      { id: '10', name: '초밥', category: '일식' },
+      { id: '11', name: '라멘', category: '일식' },
+      { id: '12', name: '파스타', category: '양식' },
+      { id: '13', name: '피자', category: '양식' },
+      { id: '14', name: '스테이크', category: '양식' },
+      { id: '15', name: '떡볶이', category: '분식' },
+      { id: '16', name: '김밥&라면', category: '분식' },
+      { id: '17', name: '수제버거', category: '패스트푸드' },
+      { id: '18', name: '치킨', category: '패스트푸드' }
+    ];
+
+    /* ========================================================
+       2. 상태 관리
+       ======================================================== */
+    let menus = [];                 // 전체 등록 메뉴
+    let excludedIds = new Set();    // 이미 당첨되어 제외된 메뉴 ID 세트
+    let isSpinning = false;         // 룰렛 회전 여부
+    let currentRotation = 0;        // 현재 룰렛 각도 (Radian)
+    let animationFrameId = null;
+
+    /* DOM 요소 참조 */
+    const canvas = document.getElementById('rouletteCanvas');
+    const ctx = canvas.getContext('2d');
+    const btnSpinCenter = document.getElementById('btnSpinCenter');
+    const btnSpinAgain = document.getElementById('btnSpinAgain');
+    const btnResetHistory = document.getElementById('btnResetHistory');
+    const btnRestoreDefaults = document.getElementById('btnRestoreDefaults');
+    const addMenuForm = document.getElementById('addMenuForm');
+    const inputMenuName = document.getElementById('inputMenuName');
+    const selectCategory = document.getElementById('selectCategory');
+    const menuList = document.getElementById('menuList');
+    const activeCountBadge = document.getElementById('activeCountBadge');
+    const excludedStatus = document.getElementById('excludedStatus');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultCategory = document.getElementById('resultCategory');
+    const winnerModal = document.getElementById('winnerModal');
+    const modalWinnerName = document.getElementById('modalWinnerName');
+    const modalCategoryBadge = document.getElementById('modalCategoryBadge');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const toastEl = document.getElementById('toast');
+
+    /* ========================================================
+       3. 로컬 스토리지 연동 및 초기화
+       ======================================================== */
+    function loadData() {
+      try {
+        const savedMenus = localStorage.getItem(STORAGE_KEY_MENUS);
+        menus = savedMenus ? JSON.parse(savedMenus) : JSON.parse(JSON.stringify(DEFAULT_MENUS));
+      } catch (e) {
+        menus = JSON.parse(JSON.stringify(DEFAULT_MENUS));
+      }
+
+      try {
+        const savedExcluded = localStorage.getItem(STORAGE_KEY_EXCLUDED);
+        excludedIds = savedExcluded ? new Set(JSON.parse(savedExcluded)) : new Set();
+      } catch (e) {
+        excludedIds = new Set();
+      }
+    }
+
+    function saveMenus() {
+      localStorage.setItem(STORAGE_KEY_MENUS, JSON.stringify(menus));
+    }
+
+    function saveExcluded() {
+      localStorage.setItem(STORAGE_KEY_EXCLUDED, JSON.stringify([...excludedIds]));
+    }
+
+    /* 현재 룰렛에 올라가는 추첨 대상 메뉴 필터 */
+    function getAvailableMenus() {
+      return menus.filter(m => !excludedIds.has(m.id));
+    }
+
+    /* ========================================================
+       4. 룰렛 그리기 (HTML5 Canvas)
+       ======================================================== */
+    function drawRoulette() {
+      const activeList = getAvailableMenus();
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = width / 2 - 24;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // 메뉴가 전혀 없거나 모두 제외되었을 때의 처리
+      if (activeList.length === 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fill();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.stroke();
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = 'bold 36px Pretendard, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(menus.length === 0 ? '메뉴를 추가해주세요' : '모든 메뉴 추첨 완료!', centerX, centerY - 20);
+        ctx.font = '24px Pretendard, sans-serif';
+        ctx.fillText(menus.length === 0 ? '우측 목록에서 메뉴를 입력하세요' : '아래 초기화 버튼을 눌러주세요', centerX, centerY + 24);
+        ctx.restore();
+        return;
+      }
+
+      const totalSlices = activeList.length;
+      const sliceAngle = (Math.PI * 2) / totalSlices;
+
+      ctx.save();
+      // 룰렛 전체 회전 적용
+      ctx.translate(centerX, centerY);
+      ctx.rotate(currentRotation);
+      ctx.translate(-centerX, -centerY);
+
+      // 바깥쪽 입체 테두리
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 12, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.1)';
+      ctx.shadowBlur = 15;
+      ctx.fill();
+
+      // 각 메뉴 조각 그리기
+      for (let i = 0; i < totalSlices; i++) {
+        const item = activeList[i];
+        const startAngle = i * sliceAngle;
+        const endAngle = startAngle + sliceAngle;
+        const colorStyle = CATEGORY_COLORS[item.category] || CATEGORY_COLORS['기타'];
+
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = colorStyle.bg;
+        ctx.fill();
+
+        // 조각 구분선
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        // 텍스트 그리기
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(startAngle + sliceAngle / 2);
+
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = colorStyle.text;
+
+        // 조각 개수에 따라 폰트 크기 자동 조절
+        let fontSize = totalSlices > 18 ? 22 : totalSlices > 12 ? 26 : 30;
+        ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
+
+        // 텍스트 그림자
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+        ctx.shadowBlur = 4;
+        
+        // 텍스트 위치: 바깥 테두리 안쪽으로 적절히 배치
+        const textDist = radius - 35;
+        
+        // 글자수 길이 축약 처리 (조각이 너무 좁을 경우)
+        let displayName = item.name;
+        if (totalSlices > 16 && displayName.length > 6) {
+          displayName = displayName.substring(0, 5) + '..';
+        }
+        ctx.fillText(displayName, textDist, 0);
+
+        ctx.restore();
+      }
+
+      // 외곽 메탈릭 림 테두리
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    /* ========================================================
+       5. 룰렛 회전 로직
+       ======================================================== */
+    function spinRoulette() {
+      if (isSpinning) return;
+
+      const available = getAvailableMenus();
+      if (available.length === 0) {
+        if (menus.length === 0) {
+          showToast('⚠️ 룰렛에 등록된 메뉴가 없습니다. 메뉴를 추가해주세요!');
+        } else {
+          showToast('🎉 모든 메뉴가 한 번씩 추첨되었습니다! 목록을 자동 초기화합니다.');
+          resetExcluded();
+          setTimeout(spinRoulette, 400);
+        }
+        return;
+      }
+
+      isSpinning = true;
+      toggleControls(false);
+
+      // 결과 영역 준비
+      resultTitle.textContent = '두구두구... 추천 중!';
+      resultCategory.style.display = 'none';
+      resultDisplay.classList.remove('win');
+
+      // 무작위 당첨 인덱스 선정
+      const totalSlices = available.length;
+      const targetIndex = Math.floor(Math.random() * totalSlices);
+      const sliceAngle = (Math.PI * 2) / totalSlices;
+
+      /*
+        화살표 핀은 캔버스 상단(12시 방향, 각도 270도 = 1.5 * PI)에 위치합니다.
+        회전 완료 시 targetIndex 조각의 중심이 1.5 * PI 위치에 오도록 역산합니다.
+      */
+      const sliceCenter = targetIndex * sliceAngle + sliceAngle / 2;
+      const targetPinAngle = Math.PI * 1.5; // 12시 방향
+      
+      // 현재 회전각을 0~2PI로 정규화
+      const normalizedCurrent = currentRotation % (Math.PI * 2);
+      // 목표 위치까지 필요한 순수 회전량
+      let angleDiff = (targetPinAngle - sliceCenter - normalizedCurrent);
+      while (angleDiff < 0) angleDiff += Math.PI * 2;
+
+      // 역동적인 회전을 위해 최소 6~9바퀴 추가 회전
+      const extraRounds = Math.PI * 2 * (6 + Math.floor(Math.random() * 3));
+      // 조각 내부에서 약간의 랜덤 오프셋 부여 (가장자리에 걸리지 않도록 ±35% 범위 내)
+      const randomJitter = (Math.random() - 0.5) * (sliceAngle * 0.7);
+      
+      const totalDelta = extraRounds + angleDiff + randomJitter;
+      const startAngle = currentRotation;
+      const endAngle = currentRotation + totalDelta;
+
+      const duration = 4600; // 회전 시간 (ms)
+      const startTime = performance.now();
+
+      function animateSpin(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Quintic Out 감속 곡선: 처음에 아주 빠르고 끝에서 쫀득하게 감속
+        const ease = 1 - Math.pow(1 - progress, 5);
+        currentRotation = startAngle + totalDelta * ease;
+
+        drawRoulette();
+
+        if (progress < 1) {
+          animationFrameId = requestAnimationFrame(animateSpin);
+        } else {
+          // 회전 종료 및 당첨 확정
+          isSpinning = false;
+          toggleControls(true);
+          onSpinFinished(available[targetIndex]);
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(animateSpin);
+    }
+
+    /* 회전 종료 시 당첨 처리 */
+    function onSpinFinished(winner) {
+      // 당첨 결과 화면 업데이트
+      resultTitle.textContent = winner.name;
+      resultCategory.textContent = winner.category;
+      const catColor = CATEGORY_COLORS[winner.category] || CATEGORY_COLORS['기타'];
+      resultCategory.style.backgroundColor = catColor.bg;
+      resultCategory.style.color = catColor.text;
+      resultCategory.style.display = 'inline-block';
+      resultDisplay.classList.add('win');
+
+      // 다음 추첨에서 우선 제외하기 위해 제외 세트에 추가
+      excludedIds.add(winner.id);
+      saveExcluded();
+
+      // UI 및 룰렛 즉시 업데이트
+      renderMenuList();
+      drawRoulette();
+
+      // 팝업 모달 표시 & 색종이 효과
+      showWinnerModal(winner);
+      triggerConfetti();
+
+      // 남은 메뉴 확인 및 알림
+      const remaining = getAvailableMenus().length;
+      if (remaining === 0) {
+        setTimeout(() => {
+          showToast('👏 모든 메뉴를 다 추첨했습니다! 다음 돌리기 시 전체 메뉴가 자동 초기화됩니다.');
+        }, 1800);
+      }
+    }
+
+    /* 컨트롤 버튼 활성화/비활성화 제어 */
+    function toggleControls(enabled) {
+      btnSpinCenter.disabled = !enabled;
+      btnSpinAgain.disabled = !enabled;
+      btnResetHistory.disabled = !enabled;
+      btnRestoreDefaults.disabled = !enabled;
+      document.getElementById('btnAddMenu').disabled = !enabled;
+      inputMenuName.disabled = !enabled;
+      selectCategory.disabled = !enabled;
+    }
+
+    /* ========================================================
+       6. 메뉴 목록 관리 (추가, 삭제, 렌더링)
+       ======================================================== */
+    function renderMenuList() {
+      menuList.innerHTML = '';
+
+      if (menus.length === 0) {
+        menuList.innerHTML = '<div class="empty-message">등록된 메뉴가 없습니다.<br>원하는 음식을 추가해보세요!</div>';
+        activeCountBadge.textContent = '0개';
+        excludedStatus.textContent = '추첨 완료: 0개';
+        return;
+      }
+
+      const availableCount = getAvailableMenus().length;
+      activeCountBadge.textContent = `${availableCount} / ${menus.length}개`;
+      excludedStatus.textContent = `추첨 완료: ${excludedIds.size}개`;
+
+      menus.forEach(item => {
+        const isExcluded = excludedIds.has(item.id);
+        const itemEl = document.createElement('div');
+        itemEl.className = `menu-item ${isExcluded ? 'excluded' : ''}`;
+        
+        const catColor = CATEGORY_COLORS[item.category] || CATEGORY_COLORS['기타'];
+
+        itemEl.innerHTML = `
+          <div class="menu-info">
+            <span class="category-tag" style="background-color: ${catColor.bg}; color: ${catColor.text};">
+              ${item.category}
+            </span>
+            <span class="menu-name" title="${item.name}">${item.name}</span>
+          </div>
+          <div class="menu-actions">
+            ${isExcluded ? '<span style="font-size:0.75rem; color:#94a3b8; margin-right:4px;">당첨됨</span>' : ''}
+            <button class="btn-icon btn-delete" data-id="${item.id}" title="메뉴 삭제" ${isSpinning ? 'disabled' : ''}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          </div>
+        `;
+        menuList.appendChild(itemEl);
+      });
+
+      // 삭제 버튼 이벤트 바인딩
+      const deleteButtons = menuList.querySelectorAll('.btn-delete');
+      deleteButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          if (isSpinning) return;
+          const id = e.currentTarget.getAttribute('data-id');
+          deleteMenu(id);
+        });
+      });
+    }
+
+    function addMenu() {
+      const name = inputMenuName.value.trim();
+      const category = selectCategory.value;
+
+      if (!name) {
+        showToast('⚠️ 음식 이름을 입력해주세요!');
+        inputMenuName.focus();
+        return;
+      }
+
+      // 중복 이름 체크
+      if (menus.some(m => m.name === name)) {
+        showToast('⚠️ 이미 목록에 존재하는 메뉴입니다.');
+        inputMenuName.focus();
+        return;
+      }
+
+      const newMenu = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+        name: name,
+        category: category
+      };
+
+      menus.push(newMenu);
+      saveMenus();
+      inputMenuName.value = '';
+      
+      renderMenuList();
+      drawRoulette();
+      showToast(`✨ '${name}' 메뉴가 룰렛에 추가되었습니다!`);
+    }
+
+    function deleteMenu(id) {
+      const target = menus.find(m => m.id === id);
+      if (!target) return;
+
+      menus = menus.filter(m => m.id !== id);
+      excludedIds.delete(id);
+      saveMenus();
+      saveExcluded();
+
+      renderMenuList();
+      drawRoulette();
+      showToast(`🗑️ '${target.name}' 메뉴가 삭제되었습니다.`);
+    }
+
+    function resetExcluded() {
+      excludedIds.clear();
+      saveExcluded();
+      renderMenuList();
+      drawRoulette();
+      showToast('🔄 모든 메뉴가 다시 추첨 대상에 포함되었습니다!');
+    }
+
+    function restoreDefaults() {
+      if (confirm('기본 메뉴 목록으로 다시 복원하시겠습니까? 현재 추가한 메뉴는 초기화됩니다.')) {
+        menus = JSON.parse(JSON.stringify(DEFAULT_MENUS));
+        excludedIds.clear();
+        saveMenus();
+        saveExcluded();
+        renderMenuList();
+        drawRoulette();
+        resultTitle.textContent = '룰렛을 돌려주세요!';
+        resultCategory.style.display = 'none';
+        resultDisplay.classList.remove('win');
+        showToast('🌱 기본 메뉴 목록으로 복원되었습니다.');
+      }
+    }
+
+    /* ========================================================
+       7. UI 팝업 모달, 토스트, 컨페티 파티클
+       ======================================================== */
+    function showWinnerModal(winner) {
+      modalWinnerName.textContent = winner.name;
+      modalCategoryBadge.textContent = winner.category;
+      const catColor = CATEGORY_COLORS[winner.category] || CATEGORY_COLORS['기타'];
+      modalCategoryBadge.style.backgroundColor = catColor.bg;
+      modalCategoryBadge.style.color = catColor.text;
+      winnerModal.classList.add('open');
+    }
+
+    function closeModal() {
+      winnerModal.classList.remove('open');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove('show');
+      }, 2500);
+    }
+
+    /* 순수 Canvas 파티클 컨페티 애니메이션 */
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+    let confettiParticles = [];
+    let confettiAnimId = null;
+
+    function resizeConfetti() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeConfetti);
+    resizeConfetti();
+
+    function triggerConfetti() {
+      confettiParticles = [];
+      const colors = ['#ff7675', '#fdcb6e', '#0984e3', '#00b894', '#6c5ce7', '#e84393', '#ff3838'];
+      const count = 90;
+
+      for (let i = 0; i < count; i++) {
+        confettiParticles.push({
+          x: window.innerWidth / 2 + (Math.random() - 0.5) * 200,
+          y: window.innerHeight / 2 - 50,
+          w: Math.random() * 9 + 5,
+          h: Math.random() * 9 + 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 14,
+          vy: Math.random() * -14 - 4,
+          rot: Math.random() * 360,
+          vRot: (Math.random() - 0.5) * 12,
+          opacity: 1
+        });
+      }
+
+      if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+      animateConfetti();
+    }
+
+    function animateConfetti() {
+      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      let alive = false;
+
+      for (let p of confettiParticles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.45; // 중력
+        p.rot += p.vRot;
+        p.opacity -= 0.009;
+
+        if (p.opacity > 0) {
+          alive = true;
+          confettiCtx.save();
+          confettiCtx.globalAlpha = Math.max(0, p.opacity);
+          confettiCtx.translate(p.x, p.y);
+          confettiCtx.rotate((p.rot * Math.PI) / 180);
+          confettiCtx.fillStyle = p.color;
+          confettiCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          confettiCtx.restore();
+        }
+      }
+
+      if (alive) {
+        confettiAnimId = requestAnimationFrame(animateConfetti);
+      } else {
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      }
+    }
+
+    /* ========================================================
+       8. 이벤트 리스너 등록 및 앱 시작
+       ======================================================== */
+    btnSpinCenter.addEventListener('click', spinRoulette);
+    btnSpinAgain.addEventListener('click', spinRoulette);
+    btnResetHistory.addEventListener('click', resetExcluded);
+    btnRestoreDefaults.addEventListener('click', restoreDefaults);
+
+    addMenuForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      addMenu();
+    });
+
+    modalCloseBtn.addEventListener('click', closeModal);
+    winnerModal.addEventListener('click', (e) => {
+      if (e.target === winnerModal) closeModal();
+    });
+
+    // 시작 시 로드 및 초기 렌더링
+    loadData();
+    renderMenuList();
+    drawRoulette();
+  </script>
+</body>
+</html>
